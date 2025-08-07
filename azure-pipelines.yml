@@ -1,0 +1,35 @@
+# azure-pipelines.yml
+# This pipeline builds and packages the Node.js Azure Function project.
+
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: NodeTool@0
+  displayName: 'Install Node.js'
+  inputs:
+    versionSpec: '18.x' # Use a Long-Term Support (LTS) version of Node.js
+
+- script: |
+    npm install
+  displayName: 'Install project dependencies'
+  workingDirectory: 'Eventify.Functions' # Important: Run this command inside your project folder
+
+- task: ArchiveFiles@2
+  displayName: 'Archive project files into a zip'
+  inputs:
+    rootFolderOrFile: '$(System.DefaultWorkingDirectory)/Eventify.Functions'
+    includeRootFolder: false # This ensures the zip file structure is correct for deployment
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/drop.zip'
+    replaceExistingArchive: true
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: drop'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/drop.zip'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'
