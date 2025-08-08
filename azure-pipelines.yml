@@ -1,5 +1,5 @@
 # azure-pipelines.yml
-# This pipeline builds and packages the Node.js Azure Function project.
+# This is a multi-stage pipeline for building and deploying the Node.js Function App.
 
 trigger:
 - main
@@ -7,29 +7,70 @@ trigger:
 pool:
   vmImage: 'ubuntu-latest'
 
-steps:
-- task: NodeTool@0
-  displayName: 'Install Node.js'
-  inputs:
-    versionSpec: '18.x' # Use a Long-Term Support (LTS) version of Node.js
+stages:
+#-------------------------
+# BUILD STAGE
+#-------------------------
+- stage: build
+  displayName: 'Build Stage'
+  jobs:
+  - job: build_and_package
+    displayName: 'Build and Package'
+    steps:
+    - task: NodeTool@0
+      displayName: 'Install Node.js'
+      inputs:
+        versionSpec: '18.x'
 
-- script: |
-    npm install
-  displayName: 'Install project dependencies'
-  workingDirectory: 'Eventify.Functions' # Important: Run this command inside your project folder
+    - script: |
+        npm install
+      displayName: 'Install project dependencies'
+      workingDirectory: 'Eventify.Functions'
 
-- task: ArchiveFiles@2
-  displayName: 'Archive project files into a zip'
-  inputs:
-    rootFolderOrFile: '$(System.DefaultWorkingDirectory)/Eventify.Functions'
-    includeRootFolder: false # This ensures the zip file structure is correct for deployment
-    archiveType: 'zip'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/drop.zip'
-    replaceExistingArchive: true
+    - task: ArchiveFiles@2
+      displayName: 'Archive project files into a zip'
+      inputs:
+        rootFolderOrFile: '$(System.DefaultWorkingDirectory)/Eventify.Functions'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/drop.zip'
+        replaceExistingArchive: true
 
-- task: PublishBuildArtifacts@1
-  displayName: 'Publish Artifact: drop'
-  inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)/drop.zip'
-    ArtifactName: 'drop'
-    publishLocation: 'Container'
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifact: drop'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)/drop.zip'
+        ArtifactName: 'drop'
+
+#-------------------------
+# DEPLOY STAGE
+#-------------------------
+- stage: deploy
+  displayName: 'Deploy Stage'
+  dependsOn: build # This stage only runs if the 'build' stage succeeds
+  condition: succeeded()
+  jobs:
+  - deployment: deploy_to_dev
+    displayName: 'Deploy to Dev Environment'
+    environment: 'Dev' # The name of the environment we created in Step 1
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          # This task downloads the 'drop.zip' artifact from the build stage
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'drop'
+              downloadPath: '$(System.ArtifactsDirectory)'
+
+          # This task deploys the code to your Azure Function App
+          - task: AzureFunctionApp@2
+            displayName: 'Deploy Function App to Azure'
+            inputs:
+              # UPDATE THE VALUES BELOW
+              azureSubscription: 'azure' # The name of the service connection from Step 2
+              appName: 'Eventify-Functions-gitesh' # The name of your Function App in Azure
+              appType: 'functionAppLinux'
+              package: '$(System.ArtifactsDirectory)/drop/drop.zip'
