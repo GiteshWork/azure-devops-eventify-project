@@ -2,7 +2,7 @@
 # This is a multi-stage pipeline for building and deploying the Node.js Function App.
 
 trigger:
-- main
+- master
 
 pool:
   vmImage: 'ubuntu-latest'
