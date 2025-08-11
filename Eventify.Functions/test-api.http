@@ -1,0 +1,23 @@
+###
+# Request an authentication token
+# @name auth
+POST https://login.microsoftonline.com/43ef61e6-3f18-4d0a-95e4-4800c1a3df1c/oauth2/v2.0/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id=a499ba83-d890-480f-8946-3282b874fca1
+&client_secret=0gC8Q~MpYFOlH_bFbGqFgNuFSU1LAXFCPGNZgc1M
+&scope=api://a499ba83-d890-480f-8946-3282b874fca1/.default
+
+###
+# Create a new event using the authentication token
+# @name createEvent
+POST YOUR_CREATEEVENT_FUNCTION_URL
+Content-Type: application/json
+Authorization: Bearer {{auth.response.body.access_token}}
+
+{
+    "name": "Authenticated Event",
+    "date": "2025-11-01T10:00:00Z",
+    "location": "Secure"
+}
